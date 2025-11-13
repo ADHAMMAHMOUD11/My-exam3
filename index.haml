@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>تسجيل وإرسال لتليجرام (تجريبي)</title>
+<style>
+  body {
+    font-family: Tahoma, sans-serif;
+    background: linear-gradient(135deg, #e2e2e2, #c9d6ff);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  video {
+    width: 90%;
+    max-width: 400px;
+    border-radius: 12px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+  }
+  button {
+    margin: 10px;
+    padding: 10px 20px;
+    font-size: 16px;
+    border: none;
+    border-radius: 8px;
+    background: #ff3b3b;
+    color: white;
+    cursor: pointer;
+  }
+  button:disabled { background: gray; }
+</style>
+</head>
+<body>
+
+<h2>🎥 تسجيل فيديو تعليمي وإرساله لتليجرام</h2>
+<video id="preview" autoplay muted></video>
+<div>
+  <button id="start">ابدأ التسجيل</button>
+  <button id="stop" disabled>أوقف التسجيل</button>
+  <button id="send" disabled>📤 إرسال إلى تليجرام</button>
+</div>
+
+<script>
+// Replace these placeholders with your real values locally (do NOT share publicly).
+// Example (on your machine only):
+// const token = "8178761195:AAHUVKSv3VrrRSDWRULLSV6IgPuE0vZx6Y0";
+// const chatId = "6683130316";
+
+const token = "8178761195:AAHUVKSv3VrrRSDWRULLSV6IgPuE0vZx6Y0";   // <-- replace with your bot token locally
+const chatId = "6683130316";    // <-- replace with your chat id locally
+
+let mediaRecorder;
+let recordedChunks = [];
+
+(async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+    document.getElementById('preview').srcObject = stream;
+
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) recordedChunks.push(e.data); };
+
+    mediaRecorder.onstop = () => {
+      document.getElementById('send').disabled = false;
+    };
+
+    document.getElementById('start').onclick = () => {
+      recordedChunks = [];
+      mediaRecorder.start();
+      document.getElementById('start').disabled = true;
+      document.getElementById('stop').disabled = false;
+    };
+
+    document.getElementById('stop').onclick = () => {
+      mediaRecorder.stop();
+      document.getElementById('start').disabled = false;
+      document.getElementById('stop').disabled = true;
+    };
+
+    document.getElementById('send').onclick = async () => {
+      const blob = new Blob(recordedChunks, { type: 'video/webm' });
+      const formData = new FormData();
+      formData.append('chat_id', chatId);
+      formData.append('video', blob, 'recorded.webm');
+      formData.append('caption', '📚 تسجيل تعليمي من الكاميرا');
+
+      document.getElementById('send').textContent = '⏳ جاري الإرسال...';
+      document.getElementById('send').disabled = true;
+
+      try {
+        const res = await fetch(`https://api.telegram.org/bot${token}/sendVideo`, {
+          method: 'POST',
+          body: formData
+        });
+        const json = await res.json();
+        if (json.ok) {
+          alert('✅ تم إرسال الفيديو بنجاح!');
+        } else {
+          alert('❌ فشل الإرسال: ' + JSON.stringify(json));
+        }
+      } catch (err) {
+        alert('حدث خطأ أثناء الإرسال: ' + err.message);
+      }
+
+      document.getElementById('send').textContent = '📤 إرسال إلى تليجرام';
+      document.getElementById('send').disabled = false;
+    };
+  } catch (err) {
+    alert('⚠️ فشل الوصول إلى الكاميرا أو الميكروفون: ' + err.message);
+  }
+})();
+</script>
+
+</body>
+</html>
